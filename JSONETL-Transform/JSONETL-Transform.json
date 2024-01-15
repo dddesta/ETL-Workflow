@@ -1,0 +1,32 @@
+{
+  "name" : "JSONETL-Transform",
+  "description" : "unnest json file and save as a parquet\n",
+  "role" : "arn:aws:iam::385363378908:role/glueETL-role",
+  "executionProperty" : {
+    "maxConcurrentRuns" : 1
+  },
+  "command" : {
+    "name" : "pythonshell",
+    "scriptLocation" : "s3://aws-glue-assets-385363378908-us-east-1/scripts/JSONETL-Transform.py",
+    "pythonVersion" : "3.9"
+  },
+  "defaultArguments" : {
+    "--enable-job-insights" : "false",
+    "--job-language" : "python",
+    "--TempDir" : "s3://aws-glue-assets-385363378908-us-east-1/temporary/",
+    "--enable-glue-datacatalog" : "true",
+    "library-set" : "analytics"
+  },
+  "maxRetries" : 0,
+  "allocatedCapacity" : 0,
+  "timeout" : 2880,
+  "maxCapacity" : 0.0625,
+  "glueVersion" : "3.0",
+  "executionClass" : "STANDARD",
+  "sourceControlDetails" : {
+    "provider" : "GITHUB",
+    "repository" : "ETL-Workflow",
+    "branch" : "main",
+    "folder" : "JSONETL-Transform"
+  }
+}
