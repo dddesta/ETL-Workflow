@@ -11,7 +11,7 @@ s3_path=sys.argv[3] if len(sys.argv)>3 else None
 
 # for testing purposes: Manually lasgebaw
 
-df=wr.s3.read_json([s3_path])
+df=wr.s3.read_json(path=s3_path,dataset=True)
 
     
 def unnest_json(json_data,parent_key='',sep='_'):
@@ -34,12 +34,12 @@ def unnest_json(json_data,parent_key='',sep='_'):
     return unnested_data
 
 
-result_df=unnest_json(df.toDF().toJSON().first().asDict())
+result_dict=unnest_json(df)
 
 destination_bucket = 'etl-final-destination'
 destination_key = 'final.snappy.parquet'
 dest_path=f's3://{destination_bucket}/{destination_key}'
 
-wr.s3.to_parquet(result_df,dest_path)
+wr.s3.to_parquet(df=result_df,path=dest_path,dataset=True, compression="SNAPPY")
 
 
