@@ -4,8 +4,8 @@ import awswrangler as wr
 
 # sys.argv[0] is the script name(jobName)
 
-s3_bucket=sys.argv[1] if len(sys.argv)>1 else None
-s3_key=sys.argv[2] if len(sys.argv)>2 else None
+#s3_bucket=sys.argv[1] if len(sys.argv)>1 else None
+#s3_key=sys.argv[2] if len(sys.argv)>2 else None
 s3_path=sys.argv[3] if len(sys.argv)>3 else None
 
 
@@ -40,6 +40,6 @@ destination_bucket = 'etl-final-destination'
 destination_key = 'final.snappy.parquet'
 dest_path=f's3://{destination_bucket}/{destination_key}'
 
-wr.s3.to_parquet(df=result_df,path=dest_path,dataset=True, compression="SNAPPY")
+wr.s3.to_parquet(df=result_dict,path=dest_path,dataset=True, compression="SNAPPY")
 
 
