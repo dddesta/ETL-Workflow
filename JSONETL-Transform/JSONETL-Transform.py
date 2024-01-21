@@ -2,30 +2,21 @@ import sys
 import boto3
 import awswrangler as wr
 import pandas as pd
-from awsflue.utils import getResolvedoptions
+from awsglue.utils import getResolvedoptions
 
 
 s3=boto3.client('s3')
-args = getResolvedoptions(sys.argv, ['input _bucket', 'input_key' ])
-
-#glue=boto3.client('glue')
-
-# sys.argv[0] is the script name(jobName)
-
-#s3_bucket=sys.argv[1] if len(sys.argv)>1 else None
-#s3_key=sys.argv[2] if len(sys.argv)>2 else None
-#s3_path=sys.argv[2] if len(sys.argv)>2 else None
-
-#for testing purposes
+args = getResolvedoptions(sys.argv, ['input_bucket', 'input_key' ])
 
 
-input_bucket= 's3-etlproject-drop'
-input_key= 'glanbia_test.json'
-input_path='s3://s3-etlproject-drop/glanbia_test.json'
+input_bucket=args['input_bucket']
+input_key=args['input_key']
+input_path=f's3://{input_bucket}/{input_key}'
 
 output_bucket= 'etl-final-destination'
 output_key= 'processed_glanbia_test.parquet'
-s3=boto3.client('s3')
+
+
 
 def flatten_json(y):
     out = {}
@@ -90,7 +81,7 @@ def main_func():
 
     print('Done!:)')
     
-def lambda_handler(event, context):
 
-    main_func()
+
+main_func()
     
