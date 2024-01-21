@@ -2,12 +2,10 @@ import sys
 import boto3
 import awswrangler as wr
 import pandas as pd
-from awsglue.utils import getResolvedoptions
-
+from awsglue.utils import getResolvedOptions
 
 s3=boto3.client('s3')
 args = getResolvedoptions(sys.argv, ['input_bucket', 'input_key' ])
-
 
 input_bucket=args['input_bucket']
 input_key=args['input_key']
@@ -15,7 +13,6 @@ input_path=f's3://{input_bucket}/{input_key}'
 
 output_bucket= 'etl-final-destination'
 output_key= 'processed_glanbia_test.parquet'
-
 
 
 def flatten_json(y):
@@ -73,10 +70,9 @@ def main_func():
         #change the output dict to a df to write as a parquet
         output_df = pd.DataFrame([result])
         
-        if status == True:
-            s3_parquet_write(df, output_bucket, output_key)
-        
-        success_notification(input_bucket,input_key)
+        if result:
+            s3_parquet_write(output_df, output_bucket, output_key)
+            success_notification(input_bucket, input_key)
         
     except Exception as e:
         failure_notification(input_bucket,input_key,e)
