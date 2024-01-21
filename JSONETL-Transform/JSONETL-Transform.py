@@ -2,7 +2,13 @@ import sys
 import boto3
 import awswrangler as wr
 import pandas as pd
+from awsflue.utils import getResolvedoptions
 
+
+s3=boto3.client('s3')
+args = getResolvedoptions(sys.argv, ['input _bucket', 'input_key' ])
+
+#glue=boto3.client('glue')
 
 # sys.argv[0] is the script name(jobName)
 
@@ -74,7 +80,8 @@ def main_func():
         
         output_df = pd.DataFrame([result])
         
-        s3_parquet_write(output_df, output_bucket,output_key)
+        if status == True:
+            s3_parquet_write(df, output_bucket, output_key)
         
         success_notification(input_bucket,input_key)
         
