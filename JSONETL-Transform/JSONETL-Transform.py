@@ -58,17 +58,19 @@ def s3_parquet_write(data,out_bucket,out_key):
     wr.s3.to_parquet(data, path)
 
 def main_func():
-    
     try:
         #read the json
         df=wr.s3.read_json(path=input_path)
         
+        #change the df to a dictionary
         json_dict= df.to_dict(orient='records')
         
+        #use the func flatten_json to unnest the json dictionary
         result=flatten_json(json_dict)
         
         #print(f"Unnested Result Dict: {result}")
         
+        #change the output dict to a df to write as a parquet
         output_df = pd.DataFrame([result])
         
         if status == True:
