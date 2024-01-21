@@ -1,45 +1,89 @@
 import sys
 import boto3
 import awswrangler as wr
+import pandas as pd
+
 
 # sys.argv[0] is the script name(jobName)
 
 #s3_bucket=sys.argv[1] if len(sys.argv)>1 else None
 #s3_key=sys.argv[2] if len(sys.argv)>2 else None
-s3_path=sys.argv[3] if len(sys.argv)>3 else None
+#s3_path=sys.argv[2] if len(sys.argv)>2 else None
+
+#for testing purposes
 
 
-# for testing purposes: Manually lasgebaw
+input_bucket= 's3-etlproject-drop'
+input_key= 'glanbia_test.json'
+input_path='s3://s3-etlproject-drop/glanbia_test.json'
 
-df=wr.s3.read_json(path=s3_path,dataset=True)
+output_bucket= 'etl-final-destination'
+output_key= 'processed_glanbia_test.parquet'
+s3=boto3.client('s3')
 
-    
-def unnest_json(json_data,parent_key='',sep='_'):
-    unnested_data={}
-    
-    for key,value in json_data.items():
-        new_key= f'{parent_key}{sep}{key}' if parent_key else key
-
-        #if the value is a dictionary
-        if isinstance(value,dict):
-            unnested_data.update(unnest_json(value,new_key,sep=sep))
-        
-        elif isinstance(value,list):
-            for i,item in enumerate(value):
-                unnested_data.update(unnest_json({str(i):item},new_key,sep=sep))
-        #leaf value
+def flatten_json(y):
+    out = {}
+ 
+    def flatten(x, name=''):
+        if type(x) is dict:
+            for a in x:
+                flatten(x[a], name + str(a) + '_')
+        elif type(x) is list:
+            for i, a in enumerate(x):
+                flatten(a, name + str(i) + '_')
         else:
-            unnested_data[new_key]=value
+            # Convert non-string values to strings before concatenation
+            out[name[:-1]] = str(x)
+ 
+    flatten(y)
+    return out
     
-    return unnested_data
+def failure_notification(bucketname,key,e):
+    sns=boto3.client('sns')
+    
+    response=sns.publish(
+        TopicArn='arn:aws:sns:us-east-1:385363378908:ETLWorkFlowTopic',
+        Message= f'Json flattening failure: The file in {key} in {bucketname} has not been processed!\n \n Exception message: {e}',
+        Subject='Flattening WorkFlow Update!'
+        )
+        
+def success_notification(bucketname,key):
+    sns=boto3.client('sns')
+    
+    response=sns.publish(
+        TopicArn='arn:aws:sns:us-east-1:385363378908:ETLWorkFlowTopic',
+        Message= f'Json flattening SUCCESS: The file in {key} in {bucketname} has been processed successfully!!',
+        Subject='Flattening WorkFlow Update!'
+        )
+def s3_parquet_write(data,out_bucket,out_key):
 
+    path=f's3://{out_bucket}/{out_key}'
+    wr.s3.to_parquet(data, path)
 
-result_dict=unnest_json(df)
+def main_func():
+    
+    try:
+        #read the json
+        df=wr.s3.read_json(path=input_path)
+        
+        json_dict= df.to_dict(orient='records')
+        
+        result=flatten_json(json_dict)
+        
+        #print(f"Unnested Result Dict: {result}")
+        
+        output_df = pd.DataFrame([result])
+        
+        s3_parquet_write(output_df, output_bucket,output_key)
+        
+        success_notification(input_bucket,input_key)
+        
+    except Exception as e:
+        failure_notification(input_bucket,input_key,e)
 
-destination_bucket = 'etl-final-destination'
-destination_key = 'final.snappy.parquet'
-dest_path=f's3://{destination_bucket}/{destination_key}'
+    print('Done!:)')
+    
+def lambda_handler(event, context):
 
-wr.s3.to_parquet(df=result_dict,path=dest_path,dataset=True, compression="SNAPPY")
-
-
+    main_func()
+    
