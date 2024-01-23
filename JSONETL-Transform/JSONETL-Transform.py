@@ -1,4 +1,5 @@
 import sys
+import time
 import boto3
 import awswrangler as wr
 import pandas as pd
@@ -12,7 +13,8 @@ input_key=args['input_key']
 input_path=f's3://{input_bucket}/{input_key}'
 
 output_bucket= 'etl-final-destination'
-output_key= 'processed_glanbia_test.parquet'
+##### make it dynamic
+output_key= f'Processed_{input_key[:-5]}.parquet'
 
 def trigger_crawler():
     try:
@@ -89,5 +91,5 @@ def main_func():
 
 
 main_func()
-#time.sleep(180)
-#trigger_crawler()
+time.sleep(150)
+trigger_crawler()
