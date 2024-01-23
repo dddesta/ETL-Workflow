@@ -14,7 +14,14 @@ input_path=f's3://{input_bucket}/{input_key}'
 output_bucket= 'etl-final-destination'
 output_key= 'processed_glanbia_test.parquet'
 
-
+def trigger_crawler():
+    try:
+        glue.start_crawler('jsoncrawler')
+    except Exception as eL:
+        print(e)
+        print('Error starting crawler')
+    
+    
 def flatten_json(y):
     out = {}
  
@@ -82,4 +89,5 @@ def main_func():
 
 
 main_func()
-    
+time.sleep(180)
+#trigger_crawler()
