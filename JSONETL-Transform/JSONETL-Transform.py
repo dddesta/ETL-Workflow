@@ -56,7 +56,7 @@ def s3_parquet_write(data,out_bucket,out_key):
     path=f's3://{out_bucket}/{out_key}'
     wr.s3.to_parquet(data, path)
 
-def main_func():
+def main_func(args):
     try:
         input_bucket=args['input_bucket']
         input_key=args['input_key']
