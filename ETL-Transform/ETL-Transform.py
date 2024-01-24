@@ -1,5 +1,5 @@
-import pandas as pd
 import boto3
+import pandas as pd
 from io import StringIO
 
 import pyarrow as pa
