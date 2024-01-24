@@ -8,18 +8,11 @@ from awsglue.utils import getResolvedOptions
 s3=boto3.client('s3')
 args = getResolvedOptions(sys.argv, ['input_bucket', 'input_key' ])
 
-input_bucket=args['input_bucket']
-input_key=args['input_key']
-input_path=f's3://{input_bucket}/{input_key}'
-
-output_bucket= 'etl-final-destination'
-##### make it dynamic
-output_key= f'Processed_{input_key[:-5]}.parquet'
 
 def trigger_crawler():
     try:
         glue.start_crawler('jsoncrawler')
-    except Exception as eL:
+    except Exception as e:
         print(e)
         print('Error starting crawler')
     
@@ -65,6 +58,14 @@ def s3_parquet_write(data,out_bucket,out_key):
 
 def main_func():
     try:
+        input_bucket=args['input_bucket']
+        input_key=args['input_key']
+        input_path=f's3://{input_bucket}/{input_key}'
+
+        output_bucket= 'etl-final-destination'
+        ##### make it dynamic
+        output_key= f'Processed_{input_key[:-5]}.parquet'
+                
         #read the json
         df=wr.s3.read_json(path=input_path)
         
@@ -90,6 +91,6 @@ def main_func():
     
 
 
-main_func()
+main_func(args)
 time.sleep(150)
 trigger_crawler()
