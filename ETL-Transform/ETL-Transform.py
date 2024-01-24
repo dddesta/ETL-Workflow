@@ -1,11 +1,8 @@
 import boto3
 import pandas as pd
-from io import StringIO
+import awswrangler as wr
 
-import pyarrow as pa
-import pyarrow.parquet as pq
-from io import BytesIO
-
+def
 
 input_bucket_name = 's3-etlproject-drop'
 input_object_key = 'data.csv'
