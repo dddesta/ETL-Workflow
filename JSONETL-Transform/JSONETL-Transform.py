@@ -6,6 +6,8 @@ import pandas as pd
 from awsglue.utils import getResolvedOptions
 
 s3=boto3.client('s3')
+glue=boto3.client('glue')
+
 args = getResolvedOptions(sys.argv, ['input_bucket', 'input_key' ])
 
 
@@ -92,5 +94,5 @@ def main_func(args):
 
 
 main_func(args)
-time.sleep(150)
+time.sleep(20)
 trigger_crawler()
