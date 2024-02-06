@@ -1,5 +1,6 @@
 {
   "name" : "JSONETL-Transform",
+  "jobMode" : "SCRIPT",
   "description" : "unnest json file and save as a parquet\n",
   "role" : "arn:aws:iam::385363378908:role/glueETL-role",
   "executionProperty" : {
@@ -26,7 +27,7 @@
   "sourceControlDetails" : {
     "provider" : "GITHUB",
     "repository" : "ETL-Workflow",
-    "branch" : "main",
+    "branch" : "move-from-test-lambda-to-glue",
     "folder" : "JSONETL-Transform"
   }
 }

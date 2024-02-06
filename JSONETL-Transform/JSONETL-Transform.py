@@ -1,30 +1,33 @@
+import json
+
 import sys
+import time
 import boto3
 import awswrangler as wr
 import pandas as pd
-from awsglue.utils import getResolvedoptions
-
+from awsglue.utils import getResolvedOptions
 
 s3=boto3.client('s3')
-args = getResolvedoptions(sys.argv, ['input_bucket', 'input_key' ])
+glue=boto3.client('glue')
 
+args = getResolvedOptions(sys.argv, ['input_bucket', 'input_key' ])
 
-input_bucket=args['input_bucket']
-input_key=args['input_key']
-input_path=f's3://{input_bucket}/{input_key}'
-
-output_bucket= 'etl-final-destination'
-output_key= 'processed_glanbia_test.parquet'
-
-
-
-def flatten_json(y):
+def trigger_crawler():
+    try:
+        glue.start_crawler('jsoncrawler')
+    except Exception as e:
+        print(e)
+        print('Error starting crawler')
+    
+    
+def flatten_json(nested_json, exclude=[]):
     out = {}
  
     def flatten(x, name=''):
         if type(x) is dict:
             for a in x:
-                flatten(x[a], name + str(a) + '_')
+                if a not in exclude: flatten(x[a], name + str(a) + '_')
+        #not needed if not flattening lists
         elif type(x) is list:
             for i, a in enumerate(x):
                 flatten(a, name + str(i) + '_')
@@ -32,56 +35,74 @@ def flatten_json(y):
             # Convert non-string values to strings before concatenation
             out[name[:-1]] = str(x)
  
-    flatten(y)
+    flatten(nested_json)
     return out
     
-def failure_notification(bucketname,key,e):
-    sns=boto3.client('sns')
-    
-    response=sns.publish(
-        TopicArn='arn:aws:sns:us-east-1:385363378908:ETLWorkFlowTopic',
-        Message= f'Json flattening failure: The file in {key} in {bucketname} has not been processed!\n \n Exception message: {e}',
-        Subject='Flattening WorkFlow Update!'
-        )
         
-def success_notification(bucketname,key):
+def sns_notification(bucketname,key,status=False,e=''):
     sns=boto3.client('sns')
+    sub='Flattening WorkFlow Update!'
+    
+    if status:
+        mssg=f'Json flattening SUCCESS: The file in {key} in {bucketname} has been processed successfully!!'
+    else:
+        mssg=f'Json flattening failure: The file in {key} in {bucketname} has not been processed!\n \n Exception message: {e}'
+    
     
     response=sns.publish(
         TopicArn='arn:aws:sns:us-east-1:385363378908:ETLWorkFlowTopic',
-        Message= f'Json flattening SUCCESS: The file in {key} in {bucketname} has been processed successfully!!',
-        Subject='Flattening WorkFlow Update!'
+        Message= mssg,
+        Subject= sub
         )
+            
 def s3_parquet_write(data,out_bucket,out_key):
 
     path=f's3://{out_bucket}/{out_key}'
     wr.s3.to_parquet(data, path)
 
-def main_func():
-    
+def main_func(args):
     try:
+        input_bucket=args['input_bucket']
+        input_key=args['input_key']
+        input_path=f's3://{input_bucket}/{input_key}'
+        
+        
+        output_bucket= 'jsonfinals3'
+    
+        output_key= f'Processed_{input_key[:-5]}.parquet'
+                
         #read the json
         df=wr.s3.read_json(path=input_path)
         
-        json_dict= df.to_dict(orient='records')
+        #change the df to a dictionary
+        dict_data=df.to_dict('records')
         
-        result=flatten_json(json_dict)
+        #transform
+        flattened_list=[]
+        
+        for jsonobj in dict_data:
+            flattened_list.append(flatten_json(jsonobj))
+        
         
         #print(f"Unnested Result Dict: {result}")
         
-        output_df = pd.DataFrame([result])
+        #change the output dict to a df to write as a parquet
+        output_df = pd.DataFrame(flattened_list)
+        output_df.columns=output_df.columns.str.replace('$','')
+        ###
         
-        if status == True:
-            s3_parquet_write(df, output_bucket, output_key)
-        
-        success_notification(input_bucket,input_key)
-        
+        if flattened_list:
+            s3_parquet_write(output_df, output_bucket, output_key)
+            sns_notification(input_bucket,input_key,True)
+            
     except Exception as e:
-        failure_notification(input_bucket,input_key,e)
-
+        sns_notification(input_bucket,input_key,False,e)
+        
+    
     print('Done!:)')
     
+main_func(args)
+#time.sleep(60)
+#trigger_crawler()
 
 
-main_func()
-    
