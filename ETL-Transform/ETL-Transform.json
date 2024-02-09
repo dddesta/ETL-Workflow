@@ -1,5 +1,6 @@
 {
   "name" : "ETL-Transform",
+  "jobMode" : "SCRIPT",
   "description" : "Etl workflow to transform csv file and load to destination s3\n",
   "role" : "arn:aws:iam::385363378908:role/glueETL-role",
   "executionProperty" : {
