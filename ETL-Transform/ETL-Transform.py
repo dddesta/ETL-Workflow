@@ -1,6 +1,9 @@
-import awswrangler as wr
 import boto3
+import awswrangler as wr
 import pandas as pd
+from awsglue.utils import getResolvedOptions
+
+args=getResolvedOptions(sys.args['input_bucket','input_key'])
 
 #send sns to send notifications to an sns topic. for success and failure
 def send_sns(bucket,key,status=False,e=''):
@@ -21,8 +24,8 @@ def send_sns(bucket,key,status=False,e=''):
 # main function to extract load and transform the data
 def main_func():
     try:
-        input_bucket='s3-etlproject-drop'
-        input_key='data.csv'
+        input_bucket=args['input_bucket']
+        input_key=args['input_key']
         input_path='s3://s3-etlproject-drop/data.csv'
         
         output_path='s3://etl-final-destination/csvout.parquet'
@@ -56,12 +59,5 @@ def main_func():
         send_sns(input_bucket,input_key,False,str(e))
         
 
-def lambda_handler(event, context):
-    # TODO implement
-    main_func()
-    
-    return {
-        'statusCode': 200,
-        'body': json.dumps('Hello from Lambda!')
-    }
+main_func(args)
     
