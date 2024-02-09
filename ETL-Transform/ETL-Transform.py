@@ -22,13 +22,13 @@ def send_sns(bucket,key,status=False,e=''):
         )
     
 # main function to extract load and transform the data
-def main_func():
+def main_func(args):
     try:
         input_bucket=args['input_bucket']
         input_key=args['input_key']
-        input_path='s3://s3-etlproject-drop/data.csv'
+        input_path=f's3://{input_bucket}}/{input_key}'
         
-        output_path='s3://etl-final-destination/csvout.parquet'
+        output_path=f's3://etl-final-destination/{input_key[:-4]}.parquet'
     
         #read csv from s3 using wrangler
         df=wr.s3.read_csv(input_path)
