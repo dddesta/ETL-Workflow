@@ -1,9 +1,10 @@
 import boto3
+import sys
 import awswrangler as wr
 import pandas as pd
 from awsglue.utils import getResolvedOptions
 
-args=getResolvedOptions(sys.args['input_bucket','input_key'])
+args=getResolvedOptions(sys.argv['input_bucket','input_key'])
 
 #send sns to send notifications to an sns topic. for success and failure
 def send_sns(bucket,key,status=False,e=''):
@@ -26,9 +27,9 @@ def main_func(args):
     try:
         input_bucket=args['input_bucket']
         input_key=args['input_key']
-        input_path=f's3://{input_bucket}}/{input_key}'
+        input_path=f's3://{input_bucket}/{input_key}'
         
-        output_path=f's3://etl-final-destination/{input_key[:-4]}.parquet'
+        output_path=f's3://etl-final-destination/processed{input_key[:-4]}.parquet'
     
         #read csv from s3 using wrangler
         df=wr.s3.read_csv(input_path)
