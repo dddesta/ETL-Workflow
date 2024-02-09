@@ -4,7 +4,7 @@ import awswrangler as wr
 import pandas as pd
 from awsglue.utils import getResolvedOptions
 
-args=getResolvedOptions(sys.argv['input_bucket','input_key'])
+args=getResolvedOptions(sys.argv,['input_bucket','input_key'])
 
 #send sns to send notifications to an sns topic. for success and failure
 def send_sns(bucket,key,status=False,e=''):
@@ -42,7 +42,7 @@ def main_func(args):
             'FILE_ROW_NUMBER':'int'}
         
         #transform using pandas
-        df.astype(data_dict)
+        df=df.astype(data_dict)
         
         # change these columns to datetime
         df['PARTITION_DATE']= pd.to_datetime(df['PARTITION_DATE'])
@@ -53,12 +53,11 @@ def main_func(args):
         send_sns(input_bucket,input_key,True)
 
         # save as parquet
-        wr.s3.to_parquet(df, output_path,compression='snappy')
+        wr.s3.to_parquet(df,output_path,compression='snappy')
     
     except Exception as e:
         # failure notif
         send_sns(input_bucket,input_key,False,str(e))
         
-
 main_func(args)
     
