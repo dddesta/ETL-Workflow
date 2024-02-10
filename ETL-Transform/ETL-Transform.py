@@ -1,61 +1,74 @@
+import sys
+import time
 import boto3
+import awswrangler as wr
 import pandas as pd
-from io import StringIO
+from awsglue.utils import getResolvedOptions
 
-import pyarrow as pa
-import pyarrow.parquet as pq
-from io import BytesIO
+def start_crawler():
+    glue=boto3.client('glue')
+    glue.start_crawler(Name='etl-crawler')
 
+#send sns to send notifications to an sns topic. for success and failure
+def send_sns(bucket,key,status=False,e=''):
+    sns=boto3.client('sns')
+    sub='CSV Transform Update!'
+    
+    if status:
+        mssg=f'SUCCESS! The file {key} in {bucket} has been processed successfully'
+    else:
+        mssg=f'FAILURE! The file {key} in {bucket} has not been processed. \n \n Exception: {e} '
+        
+    sns.publish(
+        TopicArn='arn:aws:sns:us-east-1:385363378908:ETLWorkFlowTopic',
+        Message=mssg,
+        Subject=sub
+        )
+    
+# main function to extract load and transform the data
+def main_func(args):
+    try:
+        input_bucket=args['input_bucket']
+        input_key=args['input_key']
+        input_path=f's3://{input_bucket}/{input_key}'
+        
+        output_path=f's3://etl-final-destinationProcessed {input_key[:-4]}.parquet'
+    
+        #read csv from s3 using wrangler
+        df=wr.s3.read_csv(input_path)
+        
+        #data dictionary ro transform data
+        data_dict= {'Name': str,            # Assuming 'Name' is a string
+            'Age': int,             # Assuming 'Age' is an integer
+            'Height': float,        # Assuming 'Height' is a floating-point number
+            'Gender': str,          # Assuming 'Gender' is a string
+            'Date_of_Birth': str,   # Assuming 'Date_of_Birth' is a string representing a date
+            'Weight': float,
+            'Date_of_Birth': pd.to_datetime,  # Assuming 'Date_of_Birth' is a string representing a date
+            'Registration_Date': pd.to_datetime,  # Assuming 'Registration_Date' is a string representing a date and time
+            'Last_Activity_Date': pd.to_datetime  
+        }
+        
+        #transform using pandas
+        df=df.astype(data_dict)
+        
+        
+        # success notif
+        send_sns(input_bucket,input_key,True)
 
-input_bucket_name = 's3-etlproject-drop'
-input_object_key = 'data.csv'
-output_bucket_name = 'etl-final-destination'
-output_object_key = 'outputdata.parquet'
+        # save as parquet
+        wr.s3.to_parquet(df,output_path,compression='snappy')
+    except FileNotFoundError:
+        #failure notif with input file not found
+        send_sns(input_bucket,input_key,False,'Input file not found')
+    except Exception as e:
+        # failure notif
+        send_sns(input_bucket,input_key,False,str(e))
 
-data_dictionary = {
-    'SITE_CM360': 'string',
-    'SITE_ID': 'string',
-    'SITE_ID_SITE_DIRECTORY': 'int',
-    'SITE_SITE_DIRECTORY': 'string',
-    'FILENAME': 'string',
-    'FILE_ROW_NUMBER': 'int',
-    'INSERT_DATETIME': 'timestamp',
-    'PARTITION_DATE': 'date'
-}
-
-#reading the csv and putting it on the pandas df
-s3 = boto3.client('s3')
-
-response = s3.get_object(Bucket=input_bucket_name, Key=input_object_key)
-csv_content = response['Body'].read().decode('utf-8')
-
-df = pd.read_csv(StringIO(csv_content))
-df['INSERT_DATETIME'] = pd.to_datetime(df['INSERT_DATETIME'])
-
-df['SITE_ID'] = df['SITE_ID'].astype(str)
-df['PARTITION_DATE'] = pd.to_datetime(df['PARTITION_DATE']).dt.date
-
-#Then translate the data dict into appropriate pyarrow names
-# Convert the DataFrame to a PyArrow Table with enforced data types
-table_schema = pa.schema([(col, pa.int64()) if data_type == 'int' else
-                          (col, pa.timestamp('us')) if data_type == 'timestamp' else
-                          (col, pa.date32()) if data_type == 'date' else
-                          (col, pa.string())
-                          for col, data_type in data_dictionary.items()])
-
-#Then convert the DataFrame into a pyarrowtable
-table = pa.Table.from_pandas(df, schema=table_schema)
-
-
-# Write the PyArrow Table to a BytesIO object with Snappy compression
-buffer = BytesIO()
-pq.write_table(table, buffer, compression='snappy')
-
-# Specify the destination S3 bucket and key for the Parquet file
-destination_bucket = 'etl-final-destination'
-destination_key = 'final.snappy.parquet'
-
-
-# Upload the BytesIO buffer to S3
-s3.put_object(Body=buffer.getvalue(), Bucket=output_bucket_name, Key=output_object_key)
-
+if __name__=='__main__':
+    args=getResolvedOptions(sys.argv,['input_bucket','input_key'])
+    main_func(args)
+    
+    time.sleep(60)
+    start_crawler()
+    
