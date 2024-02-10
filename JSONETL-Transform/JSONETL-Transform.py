@@ -1,19 +1,14 @@
-import json
-
 import sys
 import time
+import json
 import boto3
-import awswrangler as wr
 import pandas as pd
+import awswrangler as wr
 from awsglue.utils import getResolvedOptions
-
-s3=boto3.client('s3')
-glue=boto3.client('glue')
-
-args = getResolvedOptions(sys.argv, ['input_bucket', 'input_key' ])
 
 def trigger_crawler():
     try:
+        glue=boto3.client('glue')
         glue.start_crawler('jsoncrawler')
     except Exception as e:
         print(e)
@@ -38,7 +33,6 @@ def flatten_json(nested_json, exclude=[]):
     flatten(nested_json)
     return out
     
-        
 def sns_notification(bucketname,key,status=False,e=''):
     sns=boto3.client('sns')
     sub='Flattening WorkFlow Update!'
@@ -47,8 +41,7 @@ def sns_notification(bucketname,key,status=False,e=''):
         mssg=f'Json flattening SUCCESS: The file in {key} in {bucketname} has been processed successfully!!'
     else:
         mssg=f'Json flattening failure: The file in {key} in {bucketname} has not been processed!\n \n Exception message: {e}'
-    
-    
+
     response=sns.publish(
         TopicArn='arn:aws:sns:us-east-1:385363378908:ETLWorkFlowTopic',
         Message= mssg,
@@ -56,7 +49,6 @@ def sns_notification(bucketname,key,status=False,e=''):
         )
             
 def s3_parquet_write(data,out_bucket,out_key):
-
     path=f's3://{out_bucket}/{out_key}'
     wr.s3.to_parquet(data, path)
 
@@ -66,43 +58,44 @@ def main_func(args):
         input_key=args['input_key']
         input_path=f's3://{input_bucket}/{input_key}'
         
-        
         output_bucket= 'jsonfinals3'
-    
+        
         output_key= f'Processed_{input_key[:-5]}.parquet'
                 
-        #read the json
+        #read the json using wrangler
         df=wr.s3.read_json(path=input_path)
         
-        #change the df to a dictionary
+        #change the df to a dictionary to pass to flatten
         dict_data=df.to_dict('records')
         
-        #transform
+        #list to append flatted dictionaries to
         flattened_list=[]
         
+        #iterate through each dictionary in the list of jsons
         for jsonobj in dict_data:
             flattened_list.append(flatten_json(jsonobj))
         
-        
-        #print(f"Unnested Result Dict: {result}")
-        
         #change the output dict to a df to write as a parquet
         output_df = pd.DataFrame(flattened_list)
+        
+        #remove the dollar sign from columns
         output_df.columns=output_df.columns.str.replace('$','')
-        ###
+       
         
         if flattened_list:
             s3_parquet_write(output_df, output_bucket, output_key)
             sns_notification(input_bucket,input_key,True)
-            
+    
+    except FileNotFoundError:
+        #send sns for input not FileNotFound
+        sns_notification(input_bucket,input_key,False,'Input file not found!')
+
     except Exception as e:
         sns_notification(input_bucket,input_key,False,e)
-        
-    
-    print('Done!:)')
-    
-main_func(args)
-#time.sleep(60)
-#trigger_crawler()
 
-
+    
+if __name__=='__main__':
+    args = getResolvedOptions(sys.argv, ['input_bucket', 'input_key' ])
+    main_func(args)
+    #time.sleep(60)
+    #trigger_crawler()

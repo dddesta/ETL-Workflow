@@ -27,7 +27,7 @@
   "sourceControlDetails" : {
     "provider" : "GITHUB",
     "repository" : "ETL-Workflow",
-    "branch" : "move-from-test-lambda-to-glue",
+    "branch" : "main",
     "folder" : "JSONETL-Transform"
   }
 }
