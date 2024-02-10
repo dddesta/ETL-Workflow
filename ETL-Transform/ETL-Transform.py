@@ -1,10 +1,13 @@
-import boto3
 import sys
+import time
+import boto3
 import awswrangler as wr
 import pandas as pd
 from awsglue.utils import getResolvedOptions
 
-args=getResolvedOptions(sys.argv,['input_bucket','input_key'])
+def start_crawler():
+    glue=boto3.client('glue')
+    glue.start_crawler(Name='etl-crawler')
 
 #send sns to send notifications to an sns topic. for success and failure
 def send_sns(bucket,key,status=False,e=''):
@@ -29,24 +32,25 @@ def main_func(args):
         input_key=args['input_key']
         input_path=f's3://{input_bucket}/{input_key}'
         
-        output_path=f's3://etl-final-destination/processed{input_key[:-4]}.parquet'
+        output_path=f's3://etl-final-destinationProcessed {input_key[:-4]}.parquet'
     
         #read csv from s3 using wrangler
         df=wr.s3.read_csv(input_path)
         
         #data dictionary ro transform data
-        data_dict= {'SITE_CM360':str, 'SITE_ID':str,
-            'SITE_ID_SITE_DIRECTORY':'int',
-            'SITE_SITE_DIRECTORY':str,
-            'FILENAME':str,
-            'FILE_ROW_NUMBER':'int'}
+        data_dict= {'Name': str,            # Assuming 'Name' is a string
+            'Age': int,             # Assuming 'Age' is an integer
+            'Height': float,        # Assuming 'Height' is a floating-point number
+            'Gender': str,          # Assuming 'Gender' is a string
+            'Date_of_Birth': str,   # Assuming 'Date_of_Birth' is a string representing a date
+            'Weight': float,
+            'Date_of_Birth': pd.to_datetime,  # Assuming 'Date_of_Birth' is a string representing a date
+            'Registration_Date': pd.to_datetime,  # Assuming 'Registration_Date' is a string representing a date and time
+            'Last_Activity_Date': pd.to_datetime  
+        }
         
         #transform using pandas
         df=df.astype(data_dict)
-        
-        # change these columns to datetime
-        df['PARTITION_DATE']= pd.to_datetime(df['PARTITION_DATE'])
-        df['INSERT_DATETIME']= pd.to_datetime(df['INSERT_DATETIME'])
         
         
         # success notif
@@ -54,10 +58,17 @@ def main_func(args):
 
         # save as parquet
         wr.s3.to_parquet(df,output_path,compression='snappy')
-    
+    except FileNotFoundError:
+        #failure notif with input file not found
+        send_sns(input_bucket,input_key,False,'Input file not found')
     except Exception as e:
         # failure notif
         send_sns(input_bucket,input_key,False,str(e))
-        
-main_func(args)
+
+if __name__=='__main__':
+    args=getResolvedOptions(sys.argv,['input_bucket','input_key'])
+    main_func(args)
+    
+    time.sleep(60)
+    start_crawler()
     
