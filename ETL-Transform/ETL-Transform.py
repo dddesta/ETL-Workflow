@@ -32,13 +32,14 @@ def main_func(args):
         input_key=args['input_key']
         input_path=f's3://{input_bucket}/{input_key}'
         
-        output_path=f's3://etl-final-destinationProcessed {input_key[:-4]}.parquet'
+        output_path=f's3://etl-final-destination/Processed {input_key[:-4]}.parquet'
     
         #read csv from s3 using wrangler
         df=wr.s3.read_csv(input_path)
         
         #data dictionary ro transform data
-        data_dict= {'Name': str,            # Assuming 'Name' is a string
+        data_dict= {
+            'Name': str,            # Assuming 'Name' is a string
             'Age': int,             # Assuming 'Age' is an integer
             'Height': float,        # Assuming 'Height' is a floating-point number
             'Gender': str,          # Assuming 'Gender' is a string
