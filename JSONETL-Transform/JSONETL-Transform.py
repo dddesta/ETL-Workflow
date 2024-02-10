@@ -95,7 +95,7 @@ def main_func(args):
     except Exception as e:
         sns_notification(input_bucket,input_key,False,e)
 
-    
+#main block
 if __name__=='__main__':
     args = getResolvedOptions(sys.argv, ['input_bucket', 'input_key' ])
     main_func(args)
