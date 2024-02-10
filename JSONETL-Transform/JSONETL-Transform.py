@@ -6,6 +6,7 @@ import pandas as pd
 import awswrangler as wr
 from awsglue.utils import getResolvedOptions
 
+#func to start crawler
 def trigger_crawler():
     try:
         glue=boto3.client('glue')
@@ -14,7 +15,7 @@ def trigger_crawler():
         print(e)
         print('Error starting crawler')
     
-    
+#func to flatten nested dicts 
 def flatten_json(nested_json, exclude=[]):
     out = {}
  
@@ -32,7 +33,8 @@ def flatten_json(nested_json, exclude=[]):
  
     flatten(nested_json)
     return out
-    
+  
+#func to send sns notifications to an sns note topic. success and failure  
 def sns_notification(bucketname,key,status=False,e=''):
     sns=boto3.client('sns')
     sub='Flattening WorkFlow Update!'
